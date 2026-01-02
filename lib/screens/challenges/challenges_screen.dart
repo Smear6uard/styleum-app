@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:styleum/theme/theme.dart';
+import 'package:styleum/widgets/empty_state.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFFDFBF7),
-      body: Center(
-        child: Text(
-          'Challenges',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1F2937),
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: EmptyState(
+          headline: 'Ready for a challenge?',
+          description: 'Weekly style challenges unlock badges and rewards',
+          icon: Icons.emoji_events_outlined,
+          ctaLabel: 'Coming Soon',
+          onCtaPressed: () {
+            // TODO: Navigate to challenges when implemented
+          },
         ),
       ),
     );

@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:styleum/theme/theme.dart';
+import 'package:styleum/widgets/empty_state.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFFDFBF7),
-      body: Center(
-        child: Text(
-          'Profile',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1F2937),
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: EmptyState(
+          headline: 'Complete your profile',
+          description: 'Add your style preferences to get better recommendations',
+          icon: Icons.person_outline,
+          ctaLabel: 'Coming Soon',
+          onCtaPressed: () {
+            // TODO: Navigate to profile edit when implemented
+          },
         ),
       ),
     );

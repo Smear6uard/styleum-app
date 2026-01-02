@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:styleum/services/auth_service.dart';
+import 'package:styleum/theme/theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,9 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _authService = AuthService();
   }
 
-  static const Color cherryRed = Color(0xFFC4515E);
-  static const Color cloudDancer = Color(0xFFFDFBF7);
-
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
 
@@ -34,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sign in failed: ${e.toString()}'),
-            backgroundColor: cherryRed,
+            backgroundColor: AppColors.cherry,
           ),
         );
       }
@@ -48,45 +46,49 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: cloudDancer,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: Column(
             children: [
               const Spacer(flex: 2),
-              Text(
+              const Text(
                 'Stop staring at\nyour closet.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: cherryRed,
+                  color: AppColors.cherry,
                   height: 1.2,
                 ),
               ),
               const Spacer(flex: 3),
-              SizedBox(
+              Container(
                 width: double.infinity,
                 height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: const [AppShadows.card],
+                ),
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleGoogleSignIn,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
-                    elevation: 2,
+                    foregroundColor: AppColors.textPrimary,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: const BorderSide(color: AppColors.border),
                     ),
                   ),
                   child: _isLoading
-                      ? SizedBox(
+                      ? const SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: cherryRed,
+                            color: AppColors.cherry,
                           ),
                         )
                       : Row(
@@ -111,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: AppSpacing.xxl),
             ],
           ),
         ),
