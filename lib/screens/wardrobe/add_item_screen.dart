@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:styleum/services/achievements_service.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/theme/theme.dart';
 import 'package:styleum/widgets/app_button.dart';
@@ -237,6 +238,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
       );
 
       if (success && mounted) {
+        // Track wardrobe achievement progress
+        AchievementsService().recordAction(
+          user.id,
+          AchievementAction.wardrobeItemAdded,
+        );
+
         HapticFeedback.mediumImpact();
         widget.onItemAdded?.call();
         Navigator.of(context).pop(true);

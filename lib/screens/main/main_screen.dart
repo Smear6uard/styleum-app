@@ -1,10 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:styleum/screens/achievements/achievements_screen.dart';
 import 'package:styleum/screens/home/home_screen.dart';
 import 'package:styleum/screens/wardrobe/wardrobe_screen.dart';
 import 'package:styleum/screens/style_me/style_me_screen.dart';
-import 'package:styleum/screens/challenges/challenges_screen.dart';
 import 'package:styleum/screens/profile/profile_screen.dart';
+import 'package:styleum/services/achievements_service.dart';
 import 'package:styleum/services/outfit_service.dart';
 import 'package:styleum/theme/theme.dart';
 
@@ -21,8 +23,6 @@ class _MainScreenState extends State<MainScreen> {
   // Style Me generation state (lifted from StyleMeScreen)
   bool _isStyleMeGenerating = false;
   double _styleMeProgress = 0.0;
-  bool _styleMeHasResults = false;
-  bool _styleMeAllAnswered = false;
   List<Outfit>? _pendingOutfits;
   String? _styleMeError;
   Map<String, dynamic>? _lastSelections;
@@ -32,11 +32,12 @@ class _MainScreenState extends State<MainScreen> {
   void _onTabTapped(int index) {
     setState(() {
       _currentIndex = index;
-      // Clear badge when navigating to Style Me
-      if (index == 2) {
-        _styleMeHasResults = false;
-      }
     });
+    
+    // Dismiss any snackbars when navigating to Style Me tab
+    if (index == 2) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    }
   }
 
   Future<void> _startStyleMeGeneration(Map<String, dynamic> selections) async {
@@ -71,18 +72,22 @@ class _MainScreenState extends State<MainScreen> {
         setState(() {
           _pendingOutfits = outfits;
           _isStyleMeGenerating = false;
-          // Show badge only if not on Style Me tab
-          _styleMeHasResults = _currentIndex != 2;
         });
 
-        // Show toast if not on Style Me tab
+        // Track outfit generation achievement
+        AchievementsService().recordAction(
+          user.id,
+          AchievementAction.outfitGenerated,
+        );
+
+        // Show toast only if not on Style Me tab (hide when viewing results on Style Me tab)
         if (_currentIndex != 2) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Your outfits are ready!'),
               action: SnackBarAction(
                 label: 'View',
-                textColor: AppColors.textPrimary,
+                textColor: Colors.white,
                 onPressed: () => _onTabTapped(2),
               ),
               behavior: SnackBarBehavior.floating,
@@ -104,7 +109,6 @@ class _MainScreenState extends State<MainScreen> {
   void _clearStyleMeResults() {
     setState(() {
       _pendingOutfits = null;
-      _styleMeHasResults = false;
     });
   }
 
@@ -135,16 +139,13 @@ class _MainScreenState extends State<MainScreen> {
                 onClearResults: _clearStyleMeResults,
                 onClearError: _clearStyleMeError,
                 onNavigateToWardrobe: () => _onTabTapped(1),
-                onAllAnsweredChanged: (value) {
-                  setState(() => _styleMeAllAnswered = value);
-                },
               ),
-              const ChallengesScreen(),
+              const AchievementsScreen(),
               const ProfileScreen(),
             ],
           ),
-          // Progress bar - above bottom nav
-          if (_isStyleMeGenerating)
+          // Progress bar - above bottom nav (only show when on Style Me tab)
+          if (_isStyleMeGenerating && _currentIndex == 2)
             Positioned(
               bottom: 56, // Just above BottomNavigationBar
               left: 0,
@@ -179,8 +180,8 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 _buildNavItem(
                   index: 1,
-                  icon: Icons.checkroom_outlined,
-                  activeIcon: Icons.checkroom,
+                  icon: CupertinoIcons.square_grid_2x2,
+                  activeIcon: CupertinoIcons.square_grid_2x2_fill,
                   label: 'Wardrobe',
                 ),
                 _buildStyleMeNavItem(index: 2),
@@ -188,7 +189,7 @@ class _MainScreenState extends State<MainScreen> {
                   index: 3,
                   icon: Icons.emoji_events_outlined,
                   activeIcon: Icons.emoji_events,
-                  label: 'Challenges',
+                  label: 'Achievements',
                 ),
                 _buildNavItem(
                   index: 4,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:styleum/screens/achievements/achievements_screen.dart';
+import 'package:styleum/services/achievements_service.dart';
 import 'package:styleum/services/profile_service.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/theme/theme.dart';
@@ -15,10 +17,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileService _profileService = ProfileService();
   final WardrobeService _wardrobeService = WardrobeService();
+  final AchievementsService _achievementsService = AchievementsService();
 
   bool _isLoading = true;
   Profile? _profile;
   int _wardrobeCount = 0;
+  Map<String, int> _achievementStats = {'total': 22, 'unlocked': 0, 'unseen': 0};
 
   @override
   void initState() {
@@ -36,12 +40,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final results = await Future.wait([
       _profileService.getProfile(user.id),
       _wardrobeService.getWardrobeItems(user.id),
+      _achievementsService.getAchievementStats(user.id),
     ]);
 
     if (mounted) {
       setState(() {
         _profile = results[0] as Profile?;
         _wardrobeCount = (results[1] as List<WardrobeItem>).length;
+        _achievementStats = results[2] as Map<String, int>;
         _isLoading = false;
       });
     }
@@ -75,6 +81,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildProfileHeader(),
               const SizedBox(height: AppSpacing.lg),
               _buildStatsRow(),
+              const SizedBox(height: AppSpacing.lg),
+              _buildStyleJourneyRow(),
               const SizedBox(height: AppSpacing.lg),
               _buildFriendsCard(),
               const SizedBox(height: AppSpacing.lg),
@@ -314,6 +322,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Icons.person_outline,
         size: 20,
         color: colors[index].withValues(alpha: 0.5),
+      ),
+    );
+  }
+
+  Widget _buildStyleJourneyRow() {
+    final unlocked = _achievementStats['unlocked'] ?? 0;
+    final total = _achievementStats['total'] ?? 22;
+    final unseen = _achievementStats['unseen'] ?? 0;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          AppPageRoute(page: const AchievementsScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.inputBackground,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.emoji_events_outlined,
+                color: AppColors.slate,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Style Journey', style: AppTypography.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$unlocked of $total achievements',
+                    style: AppTypography.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            if (unseen > 0) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.slate,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$unseen',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+          ],
+        ),
       ),
     );
   }
