@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:styleum/services/auth_service.dart';
 import 'package:styleum/theme/theme.dart';
 
@@ -12,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   late final AuthService _authService;
   bool _isLoading = false;
+  bool _isPressed = false;
 
   @override
   void initState() {
@@ -32,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sign in failed: ${e.toString()}'),
-            backgroundColor: AppColors.cherry,
+            backgroundColor: AppColors.danger,
           ),
         );
       }
@@ -59,58 +61,69 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.cherry,
+                  color: AppColors.textPrimary,
                   height: 1.2,
                 ),
               ),
               const Spacer(flex: 3),
-              Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: const [AppShadows.card],
-                ),
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleGoogleSignIn,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.textPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
+              GestureDetector(
+                onTapDown: _isLoading ? null : (_) => setState(() => _isPressed = true),
+                onTapUp: _isLoading ? null : (_) {
+                  setState(() => _isPressed = false);
+                  HapticFeedback.mediumImpact();
+                  _handleGoogleSignIn();
+                },
+                onTapCancel: () => setState(() => _isPressed = false),
+                child: AnimatedScale(
+                  scale: _isPressed ? 0.95 : 1.0,
+                  duration: AppAnimations.fast,
+                  child: AnimatedContainer(
+                    duration: AppAnimations.normal,
+                    curve: AppAnimations.easeOut,
+                    width: double.infinity,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(28),
-                      side: const BorderSide(color: AppColors.border),
+                      border: Border.all(
+                        color: _isPressed ? AppColors.slateDark : AppColors.border,
+                        width: 1.5,
+                      ),
+                      boxShadow: const [AppShadows.card],
                     ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.cherry,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.network(
-                              'https://www.google.com/favicon.ico',
+                    child: Center(
+                      child: _isLoading
+                          ? const SizedBox(
                               width: 24,
                               height: 24,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.g_mobiledata, size: 24),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.textPrimary,
                               ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.network(
+                                  'https://www.google.com/favicon.ico',
+                                  width: 24,
+                                  height: 24,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.g_mobiledata, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Continue with Google',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xxl),

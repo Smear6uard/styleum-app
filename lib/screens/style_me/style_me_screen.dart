@@ -5,6 +5,7 @@ import 'package:styleum/services/outfit_service.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/theme/theme.dart';
 import 'package:styleum/widgets/skeleton_loader.dart';
+import 'package:styleum/widgets/app_button.dart';
 
 class StyleMeScreen extends StatefulWidget {
   final bool isGenerating;
@@ -207,7 +208,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                 const Icon(
                   Icons.checkroom,
                   size: 48,
-                  color: AppColors.cherry,
+                  color: AppColors.slate,
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -228,23 +229,10 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                OutlinedButton(
+                AppButton.secondary(
+                  label: 'Go to Wardrobe',
                   onPressed: widget.onNavigateToWardrobe,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.cherry,
-                    side: const BorderSide(color: AppColors.cherry),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Go to Wardrobe',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+                  fullWidth: false,
                 ),
               ],
             ),
@@ -289,26 +277,13 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
+                AppButton.primary(
+                  label: 'Try Again',
                   onPressed: () {
                     widget.onClearError();
                     _startGeneration();
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.cherry,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Try Again',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+                  fullWidth: false,
                 ),
               ],
             ),
@@ -370,7 +345,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                       child: LinearProgressIndicator(
                         value: widget.progress > 0 ? widget.progress : null,
                         backgroundColor: AppColors.border,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.cherry),
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.slate),
                         minHeight: 4,
                       ),
                     ),
@@ -595,7 +570,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
             'Change',
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.cherry,
+              color: AppColors.slate,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -628,7 +603,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
     return Container(
       padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
       decoration: BoxDecoration(
-        color: AppColors.cherry,
+        color: AppColors.slate,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -897,7 +872,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.cherry.withValues(alpha: 0.9),
+                          color: AppColors.slate.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
@@ -921,38 +896,9 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
   }
 
   Widget _buildPrimaryCTA(Outfit outfit) {
-    return SizedBox(
-      height: 56,
-      width: double.infinity,
-      child: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.espresso.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: () => _wearOutfit(outfit),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.cherry,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: const Text(
-            'Wear This Today',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
+    return AppButton.primary(
+      label: 'Wear This Today',
+      onPressed: () => _wearOutfit(outfit),
     );
   }
 
@@ -973,7 +919,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                 scale: scale,
                 child: Icon(
                   isSaved ? Icons.favorite : Icons.favorite_border,
-                  color: AppColors.cherry,
+                  color: AppColors.slate,
                   size: 28,
                 ),
               );
@@ -1020,7 +966,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: isSelected ? AppColors.cherry : AppColors.border,
+                    color: isSelected ? AppColors.slate : AppColors.border,
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -1030,7 +976,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? AppColors.cherry : AppColors.textMuted,
+                      color: isSelected ? AppColors.slate : AppColors.textMuted,
                     ),
                   ),
                 ),
@@ -1196,33 +1142,26 @@ class _SelectableChipState extends State<_SelectableChip> {
       },
       onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedScale(
-        scale: _isPressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 50),
+        scale: _isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: widget.isSelected
-                ? const Color(0xFFC4515E)
-                : Colors.white,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: widget.isSelected
-                  ? const Color(0xFFC4515E)
-                  : const Color(0xFFE5E5E5),
+              color: widget.isSelected ? AppColors.slate : AppColors.border,
+              width: 1.5,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (widget.isSelected) ...[
-                const Icon(
-                  Icons.check,
-                  size: 14,
-                  color: Colors.white,
-                ),
+                Icon(Icons.check, size: 14, color: AppColors.slate),
                 const SizedBox(width: 6),
               ],
               Text(
@@ -1230,9 +1169,7 @@ class _SelectableChipState extends State<_SelectableChip> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: widget.isSelected
-                      ? Colors.white
-                      : const Color(0xFF1A1A1A),
+                  color: widget.isSelected ? AppColors.slate : AppColors.textPrimary,
                 ),
               ),
             ],
@@ -1269,16 +1206,16 @@ class _GetOutfitsButtonState extends State<_GetOutfitsButton> {
         scale: _isPressed ? 0.98 : 1.0,
         duration: const Duration(milliseconds: 50),
         child: Container(
-          height: 60,
+          height: 50,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.cherry,
+            color: AppColors.textPrimary,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: AppColors.cherry.withValues(alpha: 0.3),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: Color(0x262C1810), // rgba(44, 24, 16, 0.15)
+                blurRadius: 12,
+                offset: Offset(0, 4),
               ),
             ],
           ),

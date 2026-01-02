@@ -297,6 +297,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
   }
 
   Widget _buildBottomSheetContent() {
+    if (_selectedImage == null) {
+      return _buildDarkThemeBottomSheet();
+    }
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
       minChildSize: 0.5,
@@ -315,15 +318,140 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.all(AppSpacing.cardPadding),
-                  child: _selectedImage == null
-                      ? _buildImagePicker()
-                      : _buildFormContent(),
+                  child: _buildFormContent(),
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDarkThemeBottomSheet() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.darkSheet,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle - centered
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 28),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.darkSheetSecondary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            // Title
+            const Text(
+              'Add to closet',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            // Description - updated copy
+            Text(
+              'Add a few pieces — the AI gets better fast.',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.darkSheetMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            // Primary button - white card style
+            GestureDetector(
+              onTap: () async {
+                await _pickImage(ImageSource.gallery);
+              },
+              child: Container(
+                width: double.infinity,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Add with photos',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "We'll auto-detect the details",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Secondary button - dark style
+            GestureDetector(
+              onTap: () async {
+                await _pickImage(ImageSource.camera);
+              },
+              child: Container(
+                width: double.infinity,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.darkSheetSecondary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Take photo',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Tip text at bottom
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lightbulb_outline, size: 14, color: AppColors.darkSheetMuted),
+                const SizedBox(width: 6),
+                Text(
+                  'Full-body photos can add multiple items at once.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.darkSheetMuted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 
@@ -414,7 +542,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: AppColors.cherry),
+            Icon(icon, size: 40, color: AppColors.slate),
             const SizedBox(height: 12),
             Text(
               label,
@@ -591,7 +719,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              borderSide: const BorderSide(color: AppColors.cherry, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.slateDark, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -630,19 +758,33 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.cherry : Colors.white,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? AppColors.cherry : AppColors.border,
+                    color: isSelected ? AppColors.slate : AppColors.border,
+                    width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
-                child: Text(
-                  _getCategoryLabel(category),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSelected) ...[
+                      const Icon(
+                        Icons.check,
+                        size: 14,
+                        color: AppColors.slate,
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      _getCategoryLabel(category),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected ? AppColors.slateDark : AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -660,7 +802,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         children: [
           Icon(
             _isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: _isFavorite ? AppColors.cherry : AppColors.textMuted,
+            color: _isFavorite ? AppColors.slateDark : AppColors.textMuted,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -669,7 +811,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: _isFavorite ? AppColors.cherry : AppColors.textMuted,
+              color: _isFavorite ? AppColors.slateDark : AppColors.textMuted,
             ),
           ),
         ],
@@ -685,3 +827,4 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 }
+

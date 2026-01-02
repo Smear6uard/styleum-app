@@ -3,6 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:styleum/services/profile_service.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/screens/wardrobe/add_item_screen.dart';
+import 'package:styleum/theme/theme.dart';
+import 'package:styleum/widgets/app_button.dart';
+import 'package:styleum/widgets/animated_list_item.dart';
+import 'package:styleum/widgets/wardrobe_onboarding_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,16 +16,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const Color cherry = Color(0xFFC4515E);
-  static const Color background = Color(0xFFFFFFFF);
-  static const Color inputFieldBackground = Color(0xFFF7F7F7);
-  static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textMuted = Color(0xFF6B7280);
-  static const Color borderColor = Color(0xFFE5E5E5);
-  static const Color success = Color(0xFF5F7A61);
-  static const Color error = Color(0xFF9B3C46);
-  static const Color espressoShadow = Color(0x142C1810);
-
   final ProfileService _profileService = ProfileService();
   final WardrobeService _wardrobeService = WardrobeService();
 
@@ -79,12 +73,26 @@ class _HomeScreenState extends State<HomeScreen> {
     return firstName[0].toUpperCase() + firstName.substring(1).toLowerCase();
   }
 
+  void _openAddItemSheet() {
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) =>
+          AddItemScreen(asBottomSheet: true, onItemAdded: () => _loadData()),
+    ).then((result) {
+      if (result == true) {
+        _loadData();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: background,
-        body: Center(child: CircularProgressIndicator(color: cherry)),
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.slate)),
       );
     }
 
@@ -94,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : '${_getGreeting()}!';
 
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -105,12 +113,22 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               _buildWeatherRow(),
               const SizedBox(height: 24),
-              if (_wardrobeCount < 5)
-                _buildAddItemsCard()
-              else
-                _buildTopPickCard(),
+              if (_wardrobeCount >= 5) ...[
+                AnimatedEntrance(child: _buildTopPickCard()),
+                const SizedBox(height: 16),
+              ],
+              AnimatedEntrance(
+                delay: Duration(milliseconds: _wardrobeCount >= 5 ? 100 : 0),
+                child: _buildChallengeRow(),
+              ),
               const SizedBox(height: 16),
-              _buildChallengeRow(),
+              AnimatedEntrance(
+                delay: Duration(milliseconds: _wardrobeCount >= 5 ? 200 : 100),
+                child: WardrobeOnboardingCard(
+                  wardrobeCount: _wardrobeCount,
+                  onAddPressed: _openAddItemSheet,
+                ),
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -137,13 +155,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: textPrimary,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 subheading,
-                style: const TextStyle(fontSize: 14, color: textMuted),
+                style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
               ),
             ],
           ),
@@ -156,11 +174,11 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: borderColor),
+                border: Border.all(color: AppColors.border),
               ),
               child: const Icon(
                 Icons.notifications_outlined,
-                color: textMuted,
+                color: AppColors.textMuted,
                 size: 20,
               ),
             ),
@@ -176,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: cherry,
+        color: AppColors.slate,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -208,139 +226,9 @@ class _HomeScreenState extends State<HomeScreen> {
         SizedBox(width: 8),
         Text(
           '72°F • Sunny • Chicago, IL',
-          style: TextStyle(fontSize: 14, color: textMuted),
+          style: TextStyle(fontSize: 14, color: AppColors.textMuted),
         ),
       ],
-    );
-  }
-
-  Widget _buildWardrobeThumbnails() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (index) {
-        final hasItem = index < _wardrobeItems.length;
-        final photoUrl = hasItem ? _wardrobeItems[index].photoUrl : null;
-
-        return Padding(
-          padding: EdgeInsets.only(left: index > 0 ? 12 : 0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: borderColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: photoUrl != null
-                  ? Image.network(
-                      photoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.checkroom,
-                        color: textMuted,
-                        size: 24,
-                      ),
-                    )
-                  : const Icon(Icons.checkroom, color: textMuted, size: 24),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildAddItemsCard() {
-    final itemsNeeded = 5 - _wardrobeCount;
-    final progress = _wardrobeCount / 5;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: espressoShadow,
-            blurRadius: 20,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildWardrobeThumbnails(),
-          const SizedBox(height: 20),
-          const Text(
-            'Build Your Wardrobe',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Add $itemsNeeded more item${itemsNeeded == 1 ? '' : 's'} to unlock outfit suggestions',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textMuted,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: borderColor,
-              valueColor: const AlwaysStoppedAnimation<Color>(cherry),
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: cherry.withValues(alpha: 0.4),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          AddItemScreen(onItemAdded: () => _loadData()),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: const Text(
-                  'Add Items',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cherry,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -349,13 +237,8 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: espressoShadow,
-            blurRadius: 24,
-            offset: Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [AppShadows.card],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,12 +248,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 height: 250,
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: borderColor,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: const Center(
-                  child: Icon(Icons.image_outlined, size: 48, color: textMuted),
+                  child: Icon(Icons.image_outlined, size: 48, color: AppColors.textMuted),
                 ),
               ),
               Positioned(
@@ -382,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: cherry,
+                    color: AppColors.slate,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Text(
@@ -407,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: textMuted,
+                    color: AppColors.textMuted,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -417,57 +300,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: textPrimary,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: cherry.withValues(alpha: 0.4),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: cherry,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Wear This Today',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
+                      child: AppButton.primary(
+                        label: 'Wear This Today',
+                        onPressed: () {},
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: OutlinedButton(
+                      child: AppButton.secondary(
+                        label: 'See All 4',
                         onPressed: () {},
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: cherry,
-                          side: const BorderSide(color: cherry),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'See All 4',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
                       ),
                     ),
                   ],
@@ -492,8 +341,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: cherry.withValues(alpha: 0.05),
-            border: Border.all(color: borderColor),
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -504,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: textPrimary,
+                  color: AppColors.textPrimary,
                 ),
               ),
               Row(
@@ -514,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: textMuted,
+                      color: AppColors.textMuted,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -522,10 +371,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 40,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: const LinearProgressIndicator(
+                      child: LinearProgressIndicator(
                         value: 0.6,
-                        backgroundColor: borderColor,
-                        valueColor: AlwaysStoppedAnimation<Color>(cherry),
+                        backgroundColor: AppColors.border,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.slate),
                         minHeight: 6,
                       ),
                     ),
@@ -536,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: cherry,
+                      color: AppColors.slateDark,
                     ),
                   ),
                 ],

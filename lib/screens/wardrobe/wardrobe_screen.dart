@@ -5,6 +5,7 @@ import 'package:styleum/screens/wardrobe/add_item_screen.dart';
 import 'package:styleum/theme/theme.dart';
 import 'package:styleum/widgets/skeleton_loader.dart';
 import 'package:styleum/widgets/empty_state.dart';
+import 'package:styleum/widgets/animated_list_item.dart';
 
 class WardrobeScreen extends StatefulWidget {
   const WardrobeScreen({super.key});
@@ -37,6 +38,10 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   bool _isLoading = true;
   String _selectedCategory = 'All';
   List<WardrobeItem> _items = [];
+
+  // Selection mode state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -79,11 +84,46 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddItemScreen(),
+      builder: (context) => const AddItemScreen(asBottomSheet: true),
     ).then((result) {
       if (result == true) {
         _loadItems();
+        // Show success toast after closing
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Added! This helps improve your daily outfits.'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.fixed,
+          ),
+        );
       }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleItemSelection(String itemId) {
+    setState(() {
+      if (_selectedIds.contains(itemId)) {
+        _selectedIds.remove(itemId);
+        if (_selectedIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedIds.add(itemId);
+      }
+    });
+  }
+
+  void _enterSelectionMode(String itemId) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedIds.add(itemId);
     });
   }
 
@@ -92,14 +132,24 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            _buildHeader(),
-            const SizedBox(height: AppSpacing.md),
-            _buildCategoryChips(),
-            const SizedBox(height: AppSpacing.md),
-            Expanded(child: _buildContent()),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _isSelectionMode ? _buildSelectionHeader() : _buildHeader(),
+                const SizedBox(height: AppSpacing.md),
+                _buildAddToClosetPill(),
+                const SizedBox(height: AppSpacing.sm),
+                _buildSubheader(),
+                const SizedBox(height: AppSpacing.sm),
+                _buildCategoryChips(),
+                const SizedBox(height: AppSpacing.md),
+                Expanded(child: _buildContent()),
+              ],
+            ),
+            if (_isSelectionMode && _selectedIds.isNotEmpty)
+              _buildSelectionFloatingPill(),
           ],
         ),
       ),
@@ -125,47 +175,210 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
     );
   }
 
-  Widget _buildCategoryChips() {
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.cardPadding),
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          final isSelected = category == _selectedCategory;
-
-          return Padding(
-            padding: EdgeInsets.only(right: index < _categories.length - 1 ? 8 : 0),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedCategory = category);
-                _loadItems();
-              },
-              child: AnimatedContainer(
-                duration: AppAnimations.normal,
-                curve: AppAnimations.easeOut,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.cherry : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? AppColors.cherry : AppColors.border,
-                  ),
-                ),
-                child: Text(
-                  category,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
+  Widget _buildSelectionHeader() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.cardPadding,
+        AppSpacing.cardPadding,
+        AppSpacing.cardPadding,
+        0,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '${_selectedIds.length} selected',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () {
+                  // TODO: Delete selected items
+                },
+                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
+              const SizedBox(width: 16),
+              IconButton(
+                onPressed: _exitSelectionMode,
+                icon: const Icon(Icons.close, color: AppColors.textPrimary),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddToClosetPill() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.cardPadding),
+      child: AnimatedOpacity(
+        opacity: _isSelectionMode ? 0.4 : 1.0,
+        duration: AppAnimations.normal,
+        child: GestureDetector(
+          onTap: _isSelectionMode ? null : _openAddItemSheet,
+          child: Container(
+            width: double.infinity,
+            height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.textPrimary,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Add to Closet',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubheader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.cardPadding),
+      child: Row(
+        children: [
+          const Text(
+            'Newest',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const Icon(Icons.arrow_drop_down, size: 18, color: AppColors.textPrimary),
+          Text(
+            '  •  ${_items.length} items',
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionFloatingPill() {
+    return Positioned(
+      left: AppSpacing.cardPadding,
+      right: AppSpacing.cardPadding,
+      bottom: AppSpacing.lg,
+      child: GestureDetector(
+        onTap: () {
+          // Navigate to Style Me with selected items
+          final selectedItems = _items.where((item) => _selectedIds.contains(item.id)).toList();
+          // TODO: Navigate to Style Me screen with selectedItems
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Styling ${selectedItems.length} items...'),
+              duration: const Duration(seconds: 2),
             ),
           );
         },
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.textPrimary,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: const [AppShadows.primaryButton],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('✨', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(
+                'Style ${_selectedIds.length} items',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChips() {
+    return SizedBox(
+      height: 40,
+      child: Stack(
+        children: [
+          ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.cardPadding),
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final category = _categories[index];
+              final isSelected = category == _selectedCategory;
+
+              return Padding(
+                padding: EdgeInsets.only(right: index < _categories.length - 1 ? 8 : 0),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedCategory = category);
+                    _loadItems();
+                  },
+                  child: AnimatedContainer(
+                    duration: AppAnimations.normal,
+                    curve: AppAnimations.easeOut,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? AppColors.slate : AppColors.border,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSelected) ...[
+                          Icon(Icons.check, size: 14, color: AppColors.slate),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          category,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected ? AppColors.slate : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -177,8 +390,8 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
 
     if (_items.isEmpty) {
       return EmptyState(
-        headline: 'Your wardrobe is empty',
-        description: 'Add items to get outfit suggestions',
+        headline: 'Start building your closet',
+        description: 'Add a few pieces to get personalized outfit suggestions',
         icon: Icons.checkroom,
         ctaLabel: 'Add Your First Item',
         onCtaPressed: _openAddItemSheet,
@@ -191,7 +404,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
   Widget _buildItemsGrid() {
     return RefreshIndicator(
       onRefresh: _loadItems,
-      color: AppColors.cherry,
+      color: AppColors.slate,
       child: GridView.builder(
         padding: const EdgeInsets.all(AppSpacing.cardPadding),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -200,162 +413,128 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
           mainAxisSpacing: 12,
           childAspectRatio: 0.8,
         ),
-        itemCount: _items.length + 1, // +1 for Add Item card
+        itemCount: _items.length,
         itemBuilder: (context, index) {
-          if (index == 0) {
-            return _buildAddItemCard();
-          }
-          final item = _items[index - 1];
-          return _buildItemCard(item);
+          final item = _items[index];
+          return AnimatedListItem(
+            index: index,
+            child: _buildItemCard(item),
+          );
         },
       ),
     );
   }
 
-  Widget _buildAddItemCard() {
-    return GestureDetector(
-      onTap: _openAddItemSheet,
-      child: CustomPaint(
-        painter: _DashedBorderPainter(
-          color: AppColors.border,
-          borderRadius: AppSpacing.radiusMd,
-          dashWidth: 6,
-          dashSpace: 4,
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.add_rounded,
-                size: 32,
-                color: AppColors.textMuted,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Add item',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildItemCard(WardrobeItem item) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        boxShadow: const [AppShadows.subtle],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              child: item.photoUrl != null
-                  ? Image.network(
-                      item.photoUrl!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppColors.border,
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_not_supported_outlined,
-                            color: AppColors.textMuted,
-                            size: 32,
+    final isSelected = _selectedIds.contains(item.id);
+
+    return GestureDetector(
+      onLongPress: () {
+        if (!_isSelectionMode) {
+          _enterSelectionMode(item.id);
+        }
+      },
+      onTap: () {
+        if (_isSelectionMode) {
+          _toggleItemSelection(item.id);
+        } else {
+          // TODO: Navigate to item detail
+        }
+      },
+      child: AnimatedContainer(
+        duration: AppAnimations.fast,
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: isSelected
+              ? Border.all(color: AppColors.slate, width: 2)
+              : null,
+          boxShadow: const [AppShadows.subtle],
+        ),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      top: const Radius.circular(12),
+                      bottom: isSelected ? Radius.zero : Radius.zero,
+                    ),
+                    child: item.photoUrl != null
+                        ? Image.network(
+                            item.photoUrl!,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                              color: AppColors.border,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: AppColors.textMuted,
+                                  size: 32,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: AppColors.border,
+                            child: const Center(
+                              child: Icon(
+                                Icons.checkroom,
+                                color: AppColors.textMuted,
+                                size: 32,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: AppColors.border,
-                      child: const Center(
-                        child: Icon(
-                          Icons.checkroom,
-                          color: AppColors.textMuted,
-                          size: 32,
-                        ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    item.itemName ?? 'Unnamed Item',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Selection checkbox
+            if (_isSelectionMode)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: AnimatedOpacity(
+                  opacity: 1.0,
+                  duration: AppAnimations.fast,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.slate : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? AppColors.slate : AppColors.border,
+                        width: 2,
                       ),
                     ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Text(
-              item.itemName ?? 'Unnamed Item',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+                    child: isSelected
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : null,
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double borderRadius;
-  final double dashWidth;
-  final double dashSpace;
-
-  _DashedBorderPainter({
-    required this.color,
-    required this.borderRadius,
-    required this.dashWidth,
-    required this.dashSpace,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        Radius.circular(borderRadius),
-      ));
-
-    final dashPath = Path();
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        dashPath.addPath(
-          metric.extractPath(distance, distance + dashWidth),
-          Offset.zero,
-        );
-        distance += dashWidth + dashSpace;
-      }
-    }
-
-    canvas.drawPath(dashPath, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.borderRadius != borderRadius ||
-        oldDelegate.dashWidth != dashWidth ||
-        oldDelegate.dashSpace != dashSpace;
-  }
 }

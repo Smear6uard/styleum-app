@@ -13,7 +13,7 @@ class AppSpacing {
 
   // Semantic spacing
   static const double cardPadding = 20.0;
-  static const double sectionGap = 32.0;
+  static const double sectionGap = 40.0; // Increased for breathing room
   static const double pageMargin = 16.0;
 
   // Border radius

@@ -28,18 +28,18 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icon in cherry-tinted circle
+            // Icon in slate-tinted circle
             Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.cherry.withValues(alpha: 0.1),
+                color: AppColors.slate.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 40,
-                color: AppColors.cherry,
+                color: AppColors.slate,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),

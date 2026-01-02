@@ -3,8 +3,6 @@ import 'package:shimmer/shimmer.dart';
 import 'package:styleum/theme/theme.dart';
 
 class SkeletonLoader extends StatelessWidget {
-  static const Color baseColor = Color(0xFFE5E5E5);
-  static const Color highlightColor = Color(0xFFFFFFFF);
   static const Duration duration = Duration(milliseconds: 1500);
 
   final Widget child;
@@ -14,8 +12,8 @@ class SkeletonLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: baseColor,
-      highlightColor: highlightColor,
+      baseColor: AppColors.border,
+      highlightColor: Colors.white,
       period: duration,
       child: child,
     );

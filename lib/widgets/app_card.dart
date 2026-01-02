@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:styleum/theme/theme.dart';
 
 /// Styleum design system card with consistent styling.
-/// White background, espresso shadow, no borders.
+/// White background, subtle border, minimal shadow.
 class AppCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -52,9 +52,8 @@ class _AppCardState extends State<AppCard> {
           borderRadius: BorderRadius.circular(
             widget.borderRadius ?? AppSpacing.radiusLg,
           ),
-          boxShadow: [
-            showElevated ? AppShadows.cardElevated : AppShadows.card,
-          ],
+          border: Border.all(color: AppColors.border, width: 1),
+          boxShadow: showElevated ? const [AppShadows.cardElevated] : null,
         ),
         child: widget.child,
       ),

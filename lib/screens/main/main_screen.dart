@@ -82,7 +82,7 @@ class _MainScreenState extends State<MainScreen> {
               content: const Text('Your outfits are ready!'),
               action: SnackBarAction(
                 label: 'View',
-                textColor: AppColors.cherry,
+                textColor: AppColors.textPrimary,
                 onPressed: () => _onTabTapped(2),
               ),
               behavior: SnackBarBehavior.floating,
@@ -152,7 +152,7 @@ class _MainScreenState extends State<MainScreen> {
               child: LinearProgressIndicator(
                 value: _styleMeProgress,
                 backgroundColor: Colors.transparent,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.cherry),
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.slate),
                 minHeight: 3,
               ),
             ),
@@ -220,7 +220,7 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Icon(
               isSelected ? activeIcon : icon,
-              color: isSelected ? AppColors.cherry : AppColors.textMuted,
+              color: isSelected ? AppColors.slate : AppColors.textMuted,
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -228,7 +228,7 @@ class _MainScreenState extends State<MainScreen> {
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: isSelected ? AppColors.cherry : AppColors.textMuted,
+                color: isSelected ? AppColors.slate : AppColors.textMuted,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -252,7 +252,7 @@ class _MainScreenState extends State<MainScreen> {
               color: Colors.transparent,
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: AppColors.cherry,
+                color: AppColors.slate,
                 width: 1.5,
               ),
             ),
@@ -261,8 +261,8 @@ class _MainScreenState extends State<MainScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  isSelected ? Icons.content_cut : Icons.content_cut_outlined,
-                  color: AppColors.cherry,
+                  Icons.style,
+                  color: AppColors.slate,
                   size: 24,
                 ),
                 const SizedBox(height: 4),
@@ -270,7 +270,7 @@ class _MainScreenState extends State<MainScreen> {
                   'Style Me',
                   style: TextStyle(
                     fontSize: 10,
-                    color: AppColors.cherry,
+                    color: AppColors.slate,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),

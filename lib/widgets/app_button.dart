@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:styleum/theme/theme.dart';
 
-enum AppButtonVariant { primary, secondary }
+enum AppButtonVariant { primary, secondary, tertiary }
 
 /// Styleum design system button with consistent styling and animations.
 class AppButton extends StatefulWidget {
@@ -41,6 +41,15 @@ class AppButton extends StatefulWidget {
     this.fullWidth = true,
   }) : variant = AppButtonVariant.secondary;
 
+  const AppButton.tertiary({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.icon,
+    this.isLoading = false,
+    this.fullWidth = false,
+  }) : variant = AppButtonVariant.tertiary;
+
   @override
   State<AppButton> createState() => _AppButtonState();
 }
@@ -71,38 +80,54 @@ class _AppButtonState extends State<AppButton> {
   @override
   Widget build(BuildContext context) {
     final isPrimary = widget.variant == AppButtonVariant.primary;
+    final isSecondary = widget.variant == AppButtonVariant.secondary;
+    final isTertiary = widget.variant == AppButtonVariant.tertiary;
+
+    // Determine colors based on variant
+    Color getBackgroundColor() {
+      if (isPrimary) {
+        return _isPressed ? const Color(0xFF0F0F0F) : AppColors.textPrimary;
+      }
+      return Colors.transparent;
+    }
+
+    Color getTextColor() {
+      if (isPrimary) return Colors.white;
+      if (isSecondary) return AppColors.slateDark;
+      return AppColors.textMuted; // tertiary
+    }
+
+    Border? getBorder() {
+      if (isSecondary) {
+        return Border.all(
+          color: _isPressed ? AppColors.slateDark : AppColors.border,
+          width: 1.5,
+        );
+      }
+      return null;
+    }
 
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
       child: AnimatedScale(
-        scale: _isPressed ? 0.98 : 1.0,
+        scale: _isPressed ? 0.95 : 1.0,
         duration: AppAnimations.fast,
         child: AnimatedContainer(
           duration: AppAnimations.normal,
           curve: AppAnimations.easeOut,
           width: widget.fullWidth ? double.infinity : null,
-          height: 56,
+          height: isTertiary ? null : 50,
+          padding: isTertiary
+              ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+              : null,
           decoration: BoxDecoration(
-            color: isPrimary
-                ? (_isPressed ? AppColors.cherryDark : AppColors.cherry)
-                : Colors.transparent,
+            color: getBackgroundColor(),
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            border: isPrimary
-                ? null
-                : Border.all(
-                    color: _isPressed ? AppColors.cherry : AppColors.border,
-                    width: 1.5,
-                  ),
+            border: getBorder(),
             boxShadow: isPrimary && _isEnabled
-                ? [
-                    BoxShadow(
-                      color: AppColors.cherry.withValues(alpha: _isPressed ? 0.5 : 0.4),
-                      blurRadius: _isPressed ? 28 : 24,
-                      offset: Offset(0, _isPressed ? 6 : 8),
-                    ),
-                  ]
+                ? const [AppShadows.primaryButton]
                 : null,
           ),
           child: Center(
@@ -112,7 +137,7 @@ class _AppButtonState extends State<AppButton> {
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: isPrimary ? Colors.white : AppColors.cherry,
+                      color: isPrimary ? Colors.white : getTextColor(),
                     ),
                   )
                 : Row(
@@ -123,11 +148,7 @@ class _AppButtonState extends State<AppButton> {
                       if (widget.icon != null) ...[
                         Icon(
                           widget.icon,
-                          color: isPrimary
-                              ? Colors.white
-                              : (_isPressed
-                                  ? AppColors.cherry
-                                  : AppColors.textPrimary),
+                          color: getTextColor(),
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -135,13 +156,9 @@ class _AppButtonState extends State<AppButton> {
                       Text(
                         widget.label,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isPrimary
-                              ? Colors.white
-                              : (_isPressed
-                                  ? AppColors.cherry
-                                  : AppColors.textPrimary),
+                          fontSize: isTertiary ? 14 : 16,
+                          fontWeight: isTertiary ? FontWeight.w500 : FontWeight.w600,
+                          color: getTextColor(),
                         ),
                       ),
                     ],

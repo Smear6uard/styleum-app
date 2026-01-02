@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:styleum/screens/auth/login_screen.dart';
 import 'package:styleum/screens/main/main_screen.dart';
+import 'package:styleum/screens/splash/splash_screen.dart';
 import 'package:styleum/services/auth_service.dart';
+import 'package:styleum/theme/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,16 +27,24 @@ class StyleumApp extends StatelessWidget {
       title: 'Styleum',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFC4515E),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.slate),
         useMaterial3: true,
       ),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/main': (context) => const MainScreen(),
+      onGenerateRoute: (settings) {
+        Widget page;
+        switch (settings.name) {
+          case '/login':
+            page = const LoginScreen();
+            break;
+          case '/main':
+            page = const MainScreen();
+            break;
+          default:
+            page = const SplashScreen();
+        }
+        return AppPageRoute(page: page);
       },
-      home: const AuthGate(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -50,12 +60,10 @@ class AuthGate extends StatelessWidget {
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Color(0xFFFFFFFF),
+          return Scaffold(
+            backgroundColor: AppColors.background,
             body: Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFFC4515E),
-              ),
+              child: CircularProgressIndicator(color: AppColors.slate),
             ),
           );
         }
@@ -70,4 +78,3 @@ class AuthGate extends StatelessWidget {
     );
   }
 }
-

@@ -1,40 +1,40 @@
 import 'package:flutter/material.dart';
 
-/// Espresso-tinted shadow system for Styleum.
-/// All shadows use warm brown (espresso) base color instead of black/gray.
-/// Maximum opacity: 15% for espresso, 40% for cherry button glow.
+/// Subtle shadow system for Styleum.
+/// Premium design uses minimal shadows - prefer borders over shadows.
+/// No colored shadows allowed.
 class AppShadows {
   AppShadows._();
 
-  /// Card shadow - standard depth for cards and containers.
-  /// blur: 20, offset: (0, 4), opacity: 8%
+  /// Card shadow - very subtle depth for cards.
+  /// blur: 8, offset: (0, 2), opacity: 4%
   static const card = BoxShadow(
-    color: Color(0x142C1810),
-    blurRadius: 20,
-    offset: Offset(0, 4),
+    color: Color(0x0A000000),
+    blurRadius: 8,
+    offset: Offset(0, 2),
   );
 
   /// Elevated card shadow - for hover/pressed states.
-  /// blur: 30, offset: (0, 8), opacity: 12%
+  /// blur: 16, offset: (0, 4), opacity: 8%
   static const cardElevated = BoxShadow(
-    color: Color(0x1F2C1810),
-    blurRadius: 30,
-    offset: Offset(0, 8),
+    color: Color(0x14000000),
+    blurRadius: 16,
+    offset: Offset(0, 4),
   );
 
-  /// Cherry button glow - for primary CTAs.
-  /// blur: 24, offset: (0, 8), opacity: 40%
-  static const cherryButton = BoxShadow(
-    color: Color(0x66C4515E),
-    blurRadius: 24,
-    offset: Offset(0, 8),
+  /// Primary button shadow - subtle depth for CTAs.
+  /// blur: 8, offset: (0, 2), opacity: 8%
+  static const primaryButton = BoxShadow(
+    color: Color(0x14000000),
+    blurRadius: 8,
+    offset: Offset(0, 2),
   );
 
   /// Subtle shadow - for small elements.
-  /// blur: 8, offset: (0, 2), opacity: 6%
+  /// blur: 4, offset: (0, 1), opacity: 4%
   static const subtle = BoxShadow(
-    color: Color(0x0F2C1810),
-    blurRadius: 8,
-    offset: Offset(0, 2),
+    color: Color(0x0A000000),
+    blurRadius: 4,
+    offset: Offset(0, 1),
   );
 }
