@@ -1,5 +1,5 @@
 -- Achievement definitions (static, seeded)
-CREATE TABLE achievement_definitions (
+CREATE TABLE IF NOT EXISTS achievement_definitions (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE achievement_definitions (
 );
 
 -- User progress on each achievement
-CREATE TABLE user_achievements (
+CREATE TABLE IF NOT EXISTS user_achievements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   achievement_id TEXT NOT NULL REFERENCES achievement_definitions(id) ON DELETE CASCADE,
@@ -25,21 +25,25 @@ CREATE TABLE user_achievements (
 );
 
 -- Index for fast lookups
-CREATE INDEX idx_user_achievements_user ON user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
 
 -- RLS policies
 ALTER TABLE achievement_definitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Achievement definitions are viewable by everyone" ON achievement_definitions;
 CREATE POLICY "Achievement definitions are viewable by everyone"
   ON achievement_definitions FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can view own achievement progress" ON user_achievements;
 CREATE POLICY "Users can view own achievement progress"
   ON user_achievements FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own achievement progress" ON user_achievements;
 CREATE POLICY "Users can update own achievement progress"
   ON user_achievements FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own achievement progress" ON user_achievements;
 CREATE POLICY "Users can insert own achievement progress"
   ON user_achievements FOR INSERT WITH CHECK (auth.uid() = user_id);
 
@@ -75,4 +79,5 @@ INSERT INTO achievement_definitions (id, title, description, category, rarity, t
 ('style_40', 'Style Seedling', 'Earn 40 style points', 'style', 'common', 40, 'eco', 1),
 ('style_60', 'Style Enthusiast', 'Accumulate 60 style points', 'style', 'uncommon', 60, 'park', 2),
 ('style_80', 'Style Icon', 'Reach 80 style points', 'style', 'rare', 80, 'workspace_premium', 3),
-('style_95', 'Style Master', 'Achieve style mastery with 95 points', 'style', 'legendary', 95, 'diamond', 4);
+('style_95', 'Style Master', 'Achieve style mastery with 95 points', 'style', 'legendary', 95, 'diamond', 4)
+ON CONFLICT (id) DO NOTHING;

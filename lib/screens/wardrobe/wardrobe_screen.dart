@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/screens/wardrobe/add_item_screen.dart';
+import 'package:styleum/screens/wardrobe/item_detail_screen.dart';
 import 'package:styleum/theme/theme.dart';
 import 'package:styleum/widgets/skeleton_loader.dart';
 import 'package:styleum/widgets/empty_state.dart';
@@ -56,17 +58,25 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       return;
     }
 
+    // Capture category before async gap to avoid race condition
+    final categoryAtStart = _selectedCategory;
+
     setState(() => _isLoading = true);
 
     final allItems = await _wardrobeService.getWardrobeItems(user.id);
 
+    // Check if category changed during fetch - if so, abort this load
+    if (_selectedCategory != categoryAtStart) {
+      return;
+    }
+
     List<WardrobeItem> filteredItems;
-    if (_selectedCategory == 'All') {
+    if (categoryAtStart == 'All') {
       filteredItems = allItems;
     } else {
-      final validCategories = _categoryMappings[_selectedCategory] ?? [];
+      final validCategories = _categoryMappings[categoryAtStart] ?? [];
       filteredItems = allItems.where((item) {
-        final itemCategory = item.category?.toLowerCase() ?? '';
+        final itemCategory = item.category.name.toLowerCase();
         return validCategories.contains(itemCategory);
       }).toList();
     }
@@ -125,6 +135,77 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       _isSelectionMode = true;
       _selectedIds.add(itemId);
     });
+  }
+
+  Future<void> _showDeleteSelectedConfirmation() async {
+    if (_selectedIds.isEmpty) return;
+
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $count ${count == 1 ? 'item' : 'items'}?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.danger,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteSelectedItems();
+    }
+  }
+
+  Future<void> _deleteSelectedItems() async {
+    HapticFeedback.mediumImpact();
+
+    // Get items to delete (to access photoUrl for storage cleanup)
+    final itemsToDelete = _items.where((item) => _selectedIds.contains(item.id)).toList();
+    
+    bool allSuccess = true;
+    for (final item in itemsToDelete) {
+      final success = await _wardrobeService.deleteWardrobeItem(item.id, item.photoUrl);
+      if (!success) {
+        allSuccess = false;
+      }
+    }
+
+    if (!mounted) return;
+
+    if (allSuccess) {
+      HapticFeedback.lightImpact();
+      final count = itemsToDelete.length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$count ${count == 1 ? 'item' : 'items'} deleted'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+      // Exit selection mode and reload items
+      _exitSelectionMode();
+      _loadItems();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Some items could not be deleted. Please try again.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      // Still reload to reflect successful deletions
+      _loadItems();
+    }
   }
 
   @override
@@ -197,9 +278,7 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
           Row(
             children: [
               IconButton(
-                onPressed: () {
-                  // TODO: Delete selected items
-                },
+                onPressed: _selectedIds.isEmpty ? null : _showDeleteSelectedConfirmation,
                 icon: const Icon(Icons.delete_outline, color: AppColors.danger),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -326,59 +405,47 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
 
   Widget _buildCategoryChips() {
     return SizedBox(
-      height: 40,
-      child: Stack(
-        children: [
-          ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.cardPadding),
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final isSelected = category == _selectedCategory;
+      height: 36,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.cardPadding),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = category == _selectedCategory;
 
-              return Padding(
-                padding: EdgeInsets.only(right: index < _categories.length - 1 ? 8 : 0),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedCategory = category);
-                    _loadItems();
-                  },
-                  child: AnimatedContainer(
-                    duration: AppAnimations.normal,
-                    curve: AppAnimations.easeOut,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? AppColors.slate : AppColors.border,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSelected) ...[
-                          Icon(Icons.check, size: 14, color: AppColors.slate),
-                          const SizedBox(width: 6),
-                        ],
-                        Text(
-                          category,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: isSelected ? AppColors.slate : AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
+          return Padding(
+            padding: EdgeInsets.only(right: index < _categories.length - 1 ? 24 : 0),
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedCategory = category);
+                _loadItems();
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    category,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 2,
+                    width: isSelected ? category.length * 7.0 : 0,
+                    decoration: BoxDecoration(
+                      color: AppColors.textPrimary,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -434,11 +501,17 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
           _enterSelectionMode(item.id);
         }
       },
-      onTap: () {
+      onTap: () async {
         if (_isSelectionMode) {
           _toggleItemSelection(item.id);
         } else {
-          // TODO: Navigate to item detail
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ItemDetailScreen(item: item)),
+          );
+          if (result == true) {
+            _loadItems(); // Reload if changes were made
+          }
         }
       },
       child: AnimatedContainer(

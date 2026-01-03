@@ -88,10 +88,6 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: Text(
           'Achievements',
           style: AppTypography.headingLarge.copyWith(
@@ -184,17 +180,12 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildFilterChip('All', null),
-          const SizedBox(width: 8),
+          _buildFilterTab('All', null),
+          const SizedBox(width: 24),
           ...AchievementCategory.values.map((cat) {
-            final inCategory = _achievements.where((a) => a.category == cat);
-            final unlocked = inCategory.where((a) => a.isUnlocked).length;
             return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _buildFilterChip(
-                '${_categoryName(cat)} $unlocked/${inCategory.length}',
-                cat,
-              ),
+              padding: const EdgeInsets.only(right: 24),
+              child: _buildFilterTab(_categoryName(cat), cat),
             );
           }),
         ],
@@ -202,24 +193,31 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, AchievementCategory? category) {
+  Widget _buildFilterTab(String label, AchievementCategory? category) {
     final isSelected = _selectedCategory == category;
     return GestureDetector(
       onTap: () => setState(() => _selectedCategory = category),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.slateDark : AppColors.inputBackground,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isSelected ? Colors.white : AppColors.textMuted,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+            ),
           ),
-        ),
+          const SizedBox(height: 6),
+          Container(
+            height: 2,
+            width: isSelected ? label.length * 7.0 : 0,
+            decoration: BoxDecoration(
+              color: AppColors.textPrimary,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -427,7 +425,7 @@ class _AchievementCardFront extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.slate,
+                              color: AppColors.textPrimary,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -620,65 +618,4 @@ class _AchievementCardBack extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Custom painter for dashed border
-class _DashedBorderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.border
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    const dashWidth = 4.0;
-    const dashSpace = 3.0;
-    double startX = 0;
-
-    // Top
-    while (startX < size.width) {
-      canvas.drawLine(
-        Offset(startX, 0),
-        Offset(startX + dashWidth, 0),
-        paint,
-      );
-      startX += dashWidth + dashSpace;
-    }
-
-    // Right
-    double startY = 0;
-    while (startY < size.height) {
-      canvas.drawLine(
-        Offset(size.width, startY),
-        Offset(size.width, startY + dashWidth),
-        paint,
-      );
-      startY += dashWidth + dashSpace;
-    }
-
-    // Bottom
-    startX = size.width;
-    while (startX > 0) {
-      canvas.drawLine(
-        Offset(startX, size.height),
-        Offset(startX - dashWidth, size.height),
-        paint,
-      );
-      startX -= dashWidth + dashSpace;
-    }
-
-    // Left
-    startY = size.height;
-    while (startY > 0) {
-      canvas.drawLine(
-        Offset(0, startY),
-        Offset(0, startY - dashWidth),
-        paint,
-      );
-      startY -= dashWidth + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:styleum/services/achievements_service.dart';
+import 'package:styleum/services/ai_analysis_service.dart';
+import 'package:styleum/models/ai_analysis.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/theme/theme.dart';
 import 'package:styleum/widgets/app_button.dart';
@@ -169,18 +171,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
           }
 
           if (!mounted) return;
-          setState(() => _compressedImage = compressed);
+          setState(() {
+            _compressedImage = compressed;
+            _isAnalyzing = false;
+          });
 
-          final analysis = await _wardrobeService.analyzeItem('');
-
-          if (mounted) {
-            setState(() {
-              _nameController.text = analysis['itemName'] ?? '';
-              _selectedCategory = analysis['category'] ?? 'top';
-              _selectedColor = analysis['primaryColor'] ?? 'black';
-              _isAnalyzing = false;
-            });
-          }
+          // Note: AI analysis now happens server-side after saving the item
+          // User can edit category/color manually before saving
         } catch (e) {
           if (mounted) {
             setState(() => _isAnalyzing = false);
@@ -228,7 +225,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         throw Exception('Failed to upload image');
       }
 
-      final success = await _wardrobeService.saveWardrobeItem(
+      final itemId = await _wardrobeService.saveWardrobeItem(
         userId: user.id,
         photoUrl: photoUrl,
         itemName: _nameController.text.trim(),
@@ -237,12 +234,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
         isFavorite: _isFavorite,
       );
 
-      if (success && mounted) {
+      if (itemId != null && mounted) {
         // Track wardrobe achievement progress
         AchievementsService().recordAction(
           user.id,
           AchievementAction.wardrobeItemAdded,
         );
+
+        // Active Learning: If marked as favorite, record like interaction
+        if (_isFavorite) {
+          StyleLearningService().recordInteraction(
+            type: StyleInteractionType.like,
+            itemId: itemId,
+          );
+        }
 
         HapticFeedback.mediumImpact();
         widget.onItemAdded?.call();

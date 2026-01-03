@@ -2,42 +2,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:styleum/models/wardrobe_item.dart';
 
-class WardrobeItem {
-  final String id;
-  final String? photoUrl;
-  final String? category;
-  final String? primaryColor;
-  final String? itemName;
-  final List<String>? seasons;
-  final List<String>? occasions;
-
-  WardrobeItem({
-    required this.id,
-    this.photoUrl,
-    this.category,
-    this.primaryColor,
-    this.itemName,
-    this.seasons,
-    this.occasions,
-  });
-
-  factory WardrobeItem.fromJson(Map<String, dynamic> json) {
-    return WardrobeItem(
-      id: json['id'] as String,
-      photoUrl: json['photo_url'] as String?,
-      category: json['category'] as String?,
-      primaryColor: json['primary_color'] as String?,
-      itemName: json['item_name'] as String?,
-      seasons: json['seasons'] != null
-          ? List<String>.from(json['seasons'] as List)
-          : null,
-      occasions: json['occasions'] != null
-          ? List<String>.from(json['occasions'] as List)
-          : null,
-    );
-  }
-}
+export 'package:styleum/models/wardrobe_item.dart';
 
 class WardrobeService {
   SupabaseClient get _supabase => Supabase.instance.client;
@@ -46,13 +13,20 @@ class WardrobeService {
     try {
       final response = await _supabase
           .from('wardrobe_items')
-          .select('id, photo_url, category, primary_color, item_name, seasons, occasions')
+          .select('''
+            id, user_id, photo_url, category, primary_color, item_name, seasons, occasions,
+            thumbnail_url, subcategory, color_hex, created_at,
+            material, style_bucket, formality, seasonality, tags, times_worn, last_worn,
+            dense_caption, ocr_text, vibe_scores, era_detected, era_confidence,
+            is_unorthodox, unorthodox_description, construction_notes, user_verified
+          ''')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return (response as List)
+      final items = (response as List)
           .map((item) => WardrobeItem.fromJson(item))
           .toList();
+      return items;
     } catch (e) {
       return [];
     }
@@ -63,14 +37,21 @@ class WardrobeService {
     try {
       final response = await _supabase
           .from('wardrobe_items')
-          .select('id, photo_url, category, primary_color, item_name, seasons, occasions')
+          .select('''
+            id, user_id, photo_url, category, primary_color, item_name, seasons, occasions,
+            thumbnail_url, subcategory, color_hex, created_at,
+            material, style_bucket, formality, seasonality, tags, times_worn, last_worn,
+            dense_caption, ocr_text, vibe_scores, era_detected, era_confidence,
+            is_unorthodox, unorthodox_description, construction_notes, user_verified
+          ''')
           .eq('user_id', userId)
           .eq('category', category.toLowerCase())
           .order('created_at', ascending: false);
 
-      return (response as List)
+      final items = (response as List)
           .map((item) => WardrobeItem.fromJson(item))
           .toList();
+      return items;
     } catch (e) {
       return [];
     }
@@ -92,36 +73,28 @@ class WardrobeService {
 
   Future<Uint8List?> compressImage(File file) async {
     try {
-      print('WardrobeService.compressImage: Starting compression for ${file.path}');
       final result = await FlutterImageCompress.compressWithFile(
         file.absolute.path,
         minWidth: 1024,
         minHeight: 1024,
         quality: 80,
       );
-      print('WardrobeService.compressImage: Compression result size: ${result?.length ?? 0} bytes');
       return result;
-    } catch (e, stackTrace) {
-      print('WardrobeService.compressImage ERROR: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       return null;
     }
   }
 
   Future<Uint8List?> compressImageFromBytes(Uint8List imageBytes) async {
     try {
-      print('WardrobeService.compressImageFromBytes: Starting compression, input size: ${imageBytes.length} bytes');
       final result = await FlutterImageCompress.compressWithList(
         imageBytes,
         minWidth: 1024,
         minHeight: 1024,
         quality: 80,
       );
-      print('WardrobeService.compressImageFromBytes: Compression result size: ${result.length} bytes');
       return result;
-    } catch (e, stackTrace) {
-      print('WardrobeService.compressImageFromBytes ERROR: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       return null;
     }
   }
@@ -130,7 +103,6 @@ class WardrobeService {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final path = '$userId/$timestamp.jpg';
-      print('WardrobeService.uploadImage: Starting upload, path: $path, size: ${imageData.length} bytes');
 
       await _supabase.storage.from('wardrobe').uploadBinary(
             path,
@@ -142,63 +114,45 @@ class WardrobeService {
             ),
           );
 
-      print('WardrobeService.uploadImage: Upload successful');
-
       final url = _supabase.storage.from('wardrobe').getPublicUrl(path);
-
-      print('WardrobeService.uploadImage: Public URL: $url');
       return url;
-    } catch (e, stackTrace) {
-      print('WardrobeService.uploadImage ERROR: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       return null;
     }
   }
 
-  Future<Map<String, dynamic>> analyzeItem(String imageUrl) async {
-    await Future.delayed(const Duration(milliseconds: 800));
+  /// Trigger AI analysis for an item via Edge Function
+  /// This calls Florence-2 + Gemini to analyze the clothing item
+  Future<Map<String, dynamic>> analyzeItem(String itemId, String imageUrl) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'analyze-item',
+        body: {
+          'item_id': itemId,
+          'image_url': imageUrl,
+        },
+      );
 
-    final mockResponses = [
-      {
-        'itemName': 'Navy Blue Blazer',
-        'category': 'outerwear',
-        'primaryColor': 'navy',
-        'seasons': ['fall', 'winter', 'spring'],
-        'occasions': ['work', 'formal'],
-      },
-      {
-        'itemName': 'White Cotton T-Shirt',
-        'category': 'top',
-        'primaryColor': 'white',
-        'seasons': ['spring', 'summer'],
-        'occasions': ['casual', 'athletic'],
-      },
-      {
-        'itemName': 'Black Slim Jeans',
-        'category': 'bottom',
-        'primaryColor': 'black',
-        'seasons': ['fall', 'winter', 'spring'],
-        'occasions': ['casual', 'work'],
-      },
-      {
-        'itemName': 'Brown Leather Boots',
-        'category': 'shoes',
-        'primaryColor': 'brown',
-        'seasons': ['fall', 'winter'],
-        'occasions': ['casual', 'work'],
-      },
-    ];
+      if (response.status != 200) {
+        throw Exception('Analysis failed: ${response.data}');
+      }
 
-    return mockResponses[DateTime.now().millisecond % mockResponses.length];
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  Future<bool> saveWardrobeItem({
+  /// Save a wardrobe item and trigger AI analysis
+  /// Returns the item ID on success, null on failure
+  Future<String?> saveWardrobeItem({
     required String userId,
     required String photoUrl,
     required String itemName,
     required String category,
     required String primaryColor,
     bool isFavorite = false,
+    bool triggerAnalysis = true,
   }) async {
     final data = {
       'user_id': userId,
@@ -208,15 +162,28 @@ class WardrobeService {
       'primary_color': primaryColor.toLowerCase(),
       'is_favorite': isFavorite,
     };
-    print('saveWardrobeItem: Inserting data: $data');
 
     try {
-      final response = await _supabase.from('wardrobe_items').insert(data);
-      print('saveWardrobeItem: Save response: $response');
-      return true;
+      // Insert and return the new row to get the ID
+      final response = await _supabase
+          .from('wardrobe_items')
+          .insert(data)
+          .select('id')
+          .single();
+
+      final itemId = response['id'] as String;
+
+      // Trigger AI analysis in the background (fire and forget)
+      if (triggerAnalysis) {
+        // Don't await - let it run in background
+        analyzeItem(itemId, photoUrl).catchError((e) {
+          // Silently handle analysis failures
+          return <String, dynamic>{};
+        });
+      }
+
+      return itemId;
     } catch (e) {
-      print('saveWardrobeItem: Database save error: $e');
-      print('saveWardrobeItem: Error type: ${e.runtimeType}');
       rethrow;
     }
   }

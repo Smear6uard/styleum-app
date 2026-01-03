@@ -14,8 +14,7 @@ class AppColors {
   // Brand Accent (Slate) - LIMITED USE
   // Only for: selected states, progress indicators, active nav, toggles
   static const slate = Color(0xFF6F7C86);
-  static const slateDark = Color(0xFF3F474F); // Icons, emphasis
-  static const slateLight = Color(0xFF9AA3AA); // Inactive, subtle
+  static const slateDark = Color(0xFF3F474F); // Icons, emphasis, score badges
 
   // Backgrounds
   static const background = Color(0xFFFFFFFF);
@@ -28,17 +27,16 @@ class AppColors {
 
   // UI
   static const border = Color(0xFFE5E7EB);
+  static const filterTagBg = Color(0xFFF3F4F6); // Gray-50 for dismissible tags
 
   // Danger - Destructive actions ONLY (delete, remove, sign out)
   static const danger = Color(0xFFB42318);
-  static const dangerSoftBg = Color(0xFFFEE4E2);
-  static const dangerBorder = Color(0xFFFDA29B);
 
   // Dark Bottom Sheet
   static const darkSheet = Color(0xFF111111);
   static const darkSheetSecondary = Color(0xFF3F474F);
   static const darkSheetMuted = Color(0xFF9CA3AF);
 
-  // Shadow base color (espresso - neutral warm)
+  // Warm neutral overlay (espresso - for soft overlays/backgrounds)
   static const espresso = Color(0xFF2C1810);
 }

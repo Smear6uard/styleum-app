@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:styleum/screens/achievements/achievements_screen.dart';
+import 'package:styleum/screens/profile/settings_screen.dart';
 import 'package:styleum/services/achievements_service.dart';
 import 'package:styleum/services/profile_service.dart';
 import 'package:styleum/services/wardrobe_service.dart';
@@ -54,10 +56,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _getDisplayName() {
+    // 1. Try Google sign-in metadata (most reliable for display name)
+    final user = Supabase.instance.client.auth.currentUser;
+    final googleName = user?.userMetadata?['full_name'] as String? ??
+        user?.userMetadata?['name'] as String?;
+    if (googleName != null && googleName.isNotEmpty) {
+      return googleName.split(' ').first; // First name only
+    }
+
+    // 2. Try profile username
     final username = _profile?.username;
-    if (username == null || username.isEmpty) return 'Stylist';
-    if (username.toLowerCase().startsWith('user_')) return 'Stylist';
-    return username;
+    if (username != null &&
+        username.isNotEmpty &&
+        !username.toLowerCase().startsWith('user_')) {
+      return username;
+    }
+
+    // 3. Try email prefix
+    final email = user?.email;
+    if (email != null && email.contains('@')) {
+      final prefix = email.split('@').first;
+      if (!prefix.startsWith('user_') && prefix.length <= 20) {
+        return prefix;
+      }
+    }
+
+    // 4. Final fallback
+    return 'Stylist';
   }
 
   @override
@@ -73,6 +98,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: AppColors.slate, size: 24),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -84,9 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: AppSpacing.lg),
               _buildStyleJourneyRow(),
               const SizedBox(height: AppSpacing.lg),
-              _buildFriendsCard(),
-              const SizedBox(height: AppSpacing.lg),
-              _buildSettingsSection(),
+              _buildReferralCard(),
             ],
           ),
         ),
@@ -218,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildFriendsCard() {
+  Widget _buildReferralCard() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -227,74 +268,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
         boxShadow: const [AppShadows.card],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildGradientOrbs(),
+          const SizedBox(height: 16),
           const Text(
-            'Style is better with friends',
+            'Know someone who stares at\ntheir closet too long?',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
               color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Share outfits and get opinions.',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
+              height: 1.4,
             ),
           ),
           const SizedBox(height: 20),
-          // Placeholder silhouettes
-          Row(
-            children: [
-              _buildPlaceholderAvatar(0),
-              _buildPlaceholderAvatar(1),
-              _buildPlaceholderAvatar(2),
-              const SizedBox(width: 12),
-              const Text(
-                'Invite friends',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Add friends button
           GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Coming soon! We'll notify you."),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
+            onTap: _shareApp,
             child: Container(
               width: double.infinity,
               height: 48,
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: AppColors.textPrimary, width: 1),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Add friends',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
+              child: const Center(
+                child: Text(
+                  'Send them Styleum',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
+                ),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "You'll both get a free month",
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.slate,
             ),
           ),
         ],
@@ -302,27 +317,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPlaceholderAvatar(int index) {
-    final colors = [
-      const Color(0xFFE8D5D5),
-      const Color(0xFFD5E0E8),
-      const Color(0xFFE8E5D5),
-    ];
+  Widget _buildGradientOrbs() {
+    return SizedBox(
+      width: 84,
+      height: 36,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            left: 0,
+            child: _buildOrb(
+              const [Color(0xFFFF6B6B), Color(0xFFFF8E8E)],
+            ),
+          ),
+          _buildOrb(
+            const [Color(0xFF6B8CFF), Color(0xFFA78BFA)],
+          ),
+          Positioned(
+            right: 0,
+            child: _buildOrb(
+              const [Color(0xFF6EE7B7), Color(0xFF5EEAD4)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildOrb(List<Color> colors) {
     return Container(
-      width: 40,
-      height: 40,
-      margin: EdgeInsets.only(left: index > 0 ? -12 : 0),
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: colors[index],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: Icon(
-        Icons.person_outline,
-        size: 20,
-        color: colors[index].withValues(alpha: 0.5),
-      ),
+    );
+  }
+
+  void _shareApp() {
+    Share.share(
+      'Check out Styleum - it picks outfits from your closet. https://styleum.app',
     );
   }
 
@@ -399,81 +439,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSettingsSection() {
-    return Column(
-      children: [
-        _buildSettingsItem(
-          icon: Icons.notifications_outlined,
-          label: 'Notifications',
-          onTap: () {},
-        ),
-        _buildSettingsItem(
-          icon: Icons.lock_outline,
-          label: 'Privacy',
-          onTap: () {},
-        ),
-        _buildSettingsItem(
-          icon: Icons.help_outline,
-          label: 'Help & Support',
-          onTap: () {},
-        ),
-        _buildSettingsItem(
-          icon: Icons.logout,
-          label: 'Sign Out',
-          onTap: () async {
-            await Supabase.instance.client.auth.signOut();
-            if (mounted) {
-              Navigator.of(context).pushReplacementNamed('/login');
-            }
-          },
-          isDestructive: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingsItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: AppColors.border, width: 0.5),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isDestructive ? AppColors.danger : AppColors.textMuted,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isDestructive ? AppColors.danger : AppColors.textPrimary,
-                ),
-              ),
-            ),
-            if (!isDestructive)
-              const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: AppColors.textMuted,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }

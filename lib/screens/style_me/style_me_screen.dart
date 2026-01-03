@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:styleum/services/achievements_service.dart';
+import 'package:styleum/services/ai_analysis_service.dart';
 import 'package:styleum/services/outfit_service.dart';
 import 'package:styleum/services/wardrobe_service.dart';
 import 'package:styleum/services/profile_service.dart';
@@ -43,6 +44,16 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
   bool _isLoading = true;
   int _wardrobeCount = 0;
   int _streakCount = 0;
+  int _longestStreak = 0;
+
+  // Expand state for stats strip
+  bool _streakExpanded = false;
+  bool _challengeExpanded = false;
+
+  // Challenge data (hardcoded for now, later from backend)
+  final int _challengeProgress = 3;
+  final int _challengeGoal = 5;
+  final int _challengeDaysRemaining = 4;
 
   // Customization state (for bottom sheet)
   String? _selectedOccasion;
@@ -98,6 +109,7 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
         _wardrobeCount = results[0] as int;
         final profile = results[1] as Profile?;
         _streakCount = profile?.currentStreak ?? 0;
+        _longestStreak = profile?.longestStreak ?? 0;
         _isLoading = false;
       });
     }
@@ -145,6 +157,8 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
         user.id,
         AchievementAction.outfitWorn,
       );
+      // Active Learning: Update user style vector
+      StyleLearningService().markOutfitWorn(outfit.id);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -166,8 +180,68 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
         _savedOutfitIds.remove(outfit.id);
       } else {
         _savedOutfitIds.add(outfit.id);
+        // Active Learning: Record save interaction
+        StyleLearningService().saveOutfit(outfit.id);
       }
     });
+  }
+
+  void _advanceToNextOutfit() {
+    setState(() {
+      if (_selectedOutfitIndex < widget.pendingOutfits!.length - 1) {
+        _selectedOutfitIndex++;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No more outfits. Tap refresh for new ones.')),
+        );
+      }
+    });
+  }
+
+  void _showRejectReasonSheet(Outfit outfit) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Why isn\'t this for you?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildRejectOption('Wrong vibe', Icons.mood_bad, outfit, 'wrong_vibe'),
+              _buildRejectOption('Not my style', Icons.style, outfit, 'not_my_style'),
+              _buildRejectOption('Wrong season', Icons.wb_sunny, outfit, 'wrong_season'),
+              _buildRejectOption('Colors don\'t work', Icons.palette, outfit, 'color_clash'),
+              _buildRejectOption('Just skip it', Icons.skip_next, outfit, 'skip'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejectOption(String label, IconData icon, Outfit outfit, String reason) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.textMuted),
+      title: Text(label),
+      onTap: () {
+        Navigator.pop(context);
+        StyleLearningService().rejectOutfit(outfit.id, reason: reason);
+        HapticFeedback.mediumImpact();
+        _advanceToNextOutfit();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Got it! We\'ll learn from this.')),
+        );
+      },
+    );
   }
 
   bool get _hasCustomizations =>
@@ -372,8 +446,8 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
                 ),
               ),
 
-              // Context cards at bottom
-              _buildContextCards(),
+              // Stats strip at bottom
+              _buildStatsStrip(),
             ],
           ),
         ),
@@ -454,42 +528,225 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
     );
   }
 
-  Widget _buildContextCards() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildContextCard('$_streakCount days', 'Consistency'),
+  Widget _buildStatsStrip() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _streakExpanded || _challengeExpanded ? Colors.blue.withValues(alpha: 0.1) : null,
+        border: const Border(
+          top: BorderSide(color: AppColors.border),
+          bottom: BorderSide(color: AppColors.border),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildContextCard('$_wardrobeCount items', 'Wardrobe'),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildStreakSection()),
+            Container(width: 1, color: AppColors.border),
+            Expanded(child: _buildChallengeSection()),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildContextCard(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+  Widget _buildStreakSection() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        debugPrint('STREAK TAPPED - expanded: $_streakExpanded');
+        setState(() {
+          _streakExpanded = !_streakExpanded;
+          if (_streakExpanded) _challengeExpanded = false;
+        });
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            _buildStatHeader('$_streakCount', 'DAY STREAK', _streakCount / 30),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: _streakExpanded
+                  ? _buildStreakExpandedContent()
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-          ),
-        ],
+    );
+  }
+
+  Widget _buildStreakExpandedContent() {
+    return AnimatedOpacity(
+      opacity: _streakExpanded ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 100),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            Container(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            Text(
+              _streakCount > 0 ? 'Keep it going!' : 'Start your streak today!',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Generate an outfit daily to maintain your streak.',
+              style: TextStyle(fontSize: 13, color: AppColors.slate),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Longest: $_longestStreak days',
+              style: const TextStyle(fontSize: 12, color: AppColors.slate),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildChallengeSection() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        debugPrint('CHALLENGE TAPPED - expanded: $_challengeExpanded');
+        setState(() {
+          _challengeExpanded = !_challengeExpanded;
+          if (_challengeExpanded) _streakExpanded = false;
+        });
+      },
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            _buildStatHeader(
+              '$_challengeProgress/$_challengeGoal',
+              'COLOR POP',
+              _challengeProgress / _challengeGoal,
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: _challengeExpanded
+                  ? _buildChallengeExpandedContent()
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChallengeExpandedContent() {
+    final isComplete = _challengeProgress >= _challengeGoal;
+
+    return AnimatedOpacity(
+      opacity: _challengeExpanded ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 100),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            Container(height: 1, color: AppColors.border),
+            const SizedBox(height: 12),
+            const Text(
+              'WEEKLY CHALLENGE',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppColors.slate,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isComplete
+                  ? 'Complete! Great job this week.'
+                  : 'Wear a bold, colorful outfit 5 times this week.',
+              style: const TextStyle(fontSize: 13, color: AppColors.slate),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isComplete
+                  ? 'New challenge in $_challengeDaysRemaining days'
+                  : '$_challengeDaysRemaining days remaining',
+              style: const TextStyle(fontSize: 12, color: AppColors.slate),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatHeader(String value, String label, double progress) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            height: 1.0,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: AppColors.slate,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 2,
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(1),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: constraints.maxWidth * progress.clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.textPrimary,
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -780,34 +1037,9 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
           border: Border.all(color: AppColors.border),
           boxShadow: const [AppShadows.card],
         ),
-        child: Stack(
-          children: [
-            // Item thumbnails grid
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: _buildItemThumbnails(outfit.items),
-            ),
-            // Score badge
-            Positioned(
-              top: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.slateDark,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${outfit.matchScore}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: _buildItemThumbnails(outfit.items),
         ),
       ),
     );
@@ -879,14 +1111,23 @@ class _StyleMeScreenState extends State<StyleMeScreen> {
   }
 
   Widget _buildAdjustmentPills() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final currentOutfit = widget.pendingOutfits![_selectedOutfitIndex];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
       children: [
+        _buildAdjustmentPill('Skip', () {
+          StyleLearningService().skipOutfit(currentOutfit.id);
+          HapticFeedback.lightImpact();
+          _advanceToNextOutfit();
+        }, icon: Icons.skip_next),
+        _buildAdjustmentPill('Not for me', () {
+          _showRejectReasonSheet(currentOutfit);
+        }, icon: Icons.thumb_down_outlined),
         _buildAdjustmentPill('More casual', () => _generateWithModifier('casual')),
-        const SizedBox(width: 8),
         _buildAdjustmentPill('More bold', () => _generateWithModifier('bold')),
-        const SizedBox(width: 8),
-        _buildAdjustmentPill('Try again', () => _generateWithDefaults(), icon: Icons.refresh),
+        _buildAdjustmentPill('', () => _generateWithDefaults(), icon: Icons.refresh),
       ],
     );
   }
